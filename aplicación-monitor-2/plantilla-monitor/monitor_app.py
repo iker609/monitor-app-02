@@ -19,7 +19,7 @@ CAIDAS: Final = [14, 12, 15, 9, 0, 22,
 # Datos del programa. Solo hay que cambiar AUTORES.
 # ---------------------------------------------------------------------------
 VERSION_PROGRAMA: Final[str] = "1.0.0"
-AUTORES: Final[str] = "[usuario] · [usuario]"
+AUTORES: Final[str] = "[Iker Alcolea Mateos] · [David Raúl Rus Almajan]"
 PENDIENTE: Final[str] = "  (opción pendiente de implementar)"
 
 # ---------------------------------------------------------------------------
@@ -60,7 +60,19 @@ def estado(descargas: int, caidas: int) -> str:
     Es uno de estos textos: "Estable", "Aceptable", "Revisar", "Crítica" o
     "Mantenimiento", este último si la semana no tiene descargas.
     """
-    return PENDIENTE                  # provisional
+    if descargas == 0:
+        return "MAntenimiento"
+
+    tasa = (caidas / descargas) * 1000
+
+    if tasa < 50:
+        return "EStable"
+    if tasa < 100:
+        return "Aceptable"
+    if tasa < 150:
+        return "Revisar"
+    else:
+        return "Critica"
 
 
 def pedir_entero(mensaje: str, minimo: int, maximo: int) -> int:
@@ -69,6 +81,14 @@ def pedir_entero(mensaje: str, minimo: int, maximo: int) -> int:
     Si se escribe algo que no es un entero o está fuera de rango, avisa y
     lo vuelve a pedir.
     """
+    while True:
+        try:
+            valor = int(input(mensaje))
+            if minimo <= valor <= maximo:
+                return valor
+            print(f"Error: El valor debe estar entre el minimo y el máximo: {minimo}-{maximo}")
+        except ValueError:
+            print("Error, número inválido")
     return minimo                     # provisional
 
 
@@ -78,7 +98,14 @@ def pedir_real(mensaje: str, minimo: float, maximo: float) -> float:
     Si se escribe algo que no es un número o está fuera de rango, avisa y
     lo vuelve a pedir.
     """
-    return minimo                     # provisional
+    while True:
+        try:
+            valor = float(input(mensaje))
+            if minimo <= valor <= maximo:
+                return valor
+            print(f"Error: debe estar entre el mínimo y el máximo: {minimo}-{maximo}")
+        except ValueError:
+            print("Error, número inválido")
 
 
 def semana_valida(texto: str) -> int:
@@ -86,7 +113,13 @@ def semana_valida(texto: str) -> int:
 
     Lanza SemanaNoValida si no es un entero o está fuera de rango.
     """
-    return 1                          # provisional
+    try:
+        semana = int(texto)
+        if 1 <= semana <= len(DESCARGAS):
+            return semana
+        raise ValueError("SEmana fuera de rango")
+    except ValueError:
+        raise ValueError("Semana no válida")
 
 
 def comprobar_datos() -> int:
@@ -152,18 +185,85 @@ def opcion_2_resumen() -> None:
 
 
 def opcion_3_estabilidad() -> None:
-    """[Docstring: qué hace esta opción.]"""
-    print(PENDIENTE)
+    """[Docstring: Obtiene el estado de estabilidad cada semana y su recuento.]"""
+    estables = 0
+    aceptables = 0
+    revisar = 0
+    criticas = 0
+    mantenimiento = 0
+    for semana, (descargas, caidas) in enumerate(
+            zip(DESCARGAS, CAIDAS), start=1):
+        if descargas == 0:
+            mantenimiento += 1
+            print(f"Semana {semana}: Mantenimiento")
+            continue
+        estado_semana = estado(descargas, caidas)
+        print(f"Semana {semana}: {estado_semana}")
+
+        match estado_semana:
+            case "Estable":
+                estables += 1
+            case "Aceptable":
+                aceptables += 1
+            case "Revisar":
+                revisar += 1
+            case "Crítica": 
+                criticas += 1
+    print(f"Semanas estables:{estables}")
+    print(f"Semanas aceptables:{aceptables}")
+    print(f"Semanas a revisar: {revisar}")
+    print(f"Semanas críticas: {criticas}")       
+    print(f"Mantenimiento: {mantenimiento}")
 
 
 def opcion_4_umbral() -> None:
-    """[Docstring: qué hace esta opción.]"""
-    print(PENDIENTE)
+    """[Docstring: Muestra la primera semana que alcanzaz o supera el umbral por mil.]"""
+    umbral = pedir_real("Umbral de caídas por mil: ", 0, 1000)
+
+    for semana,(descargas, caidas) in enumerate(
+        zip(DESCARGAS, CAIDAS), start=1):
+        if descargas == 0:
+            continue
+
+        tasa = tasa_caidas(descargas, caidas)
+        if tasa >= umbral:
+            print(f"Primera Semana {semana}: {tasa:.1f} ‰")
+            break
+        else:
+            print(f"Ninguna semana alcanza el umbral de {umbral:.1f} ‰")
 
 
 def opcion_5_racha() -> None:
-    """[Docstring: qué hace esta opción.]"""
-    print(PENDIENTE)
+    """[Muestra la racha más larga de semanas seguidas con el estado Estable o aceptable.]"""
+    mejor_racha = 0
+    inicio_mejor = 0
+    racha_actual = 0
+    inicio_actual = 0
+
+    for semana,(descargas, caidas) in enumerate(
+        zip(DESCARGAS, CAIDAS), start=1
+    ):
+        if descargas == 0:
+            continue
+
+        estado_caidas = estado(descargas, caidas)
+
+    if estado_caidas in ("Estable", "Aceptable"):
+        if racha_actual == 0:
+            inicio_actual = semana
+        racha_actual +=1
+
+        if racha_actual > mejor_racha:
+            mejor_racha = racha_actual
+            inicio_mejor = inicio_actual
+        else:
+            racha_actual = 0
+            inicio_actual = 0
+    if mejor_racha > 0:
+        print(f"Mejor racha: {mejor_racha}, semana de inicio: {inicio_mejor}")
+    else:
+        print("NO hay racha")
+
 
 
 def opcion_6_prevision() -> None:

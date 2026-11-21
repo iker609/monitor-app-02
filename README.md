@@ -23,10 +23,10 @@ No hace falta descargar el repositorio ni tener Python instalado. Solo Docker. E
 pide datos por teclado, así que se ejecuta con `-it`.
 
 ```bash
-docker run --rm -it --pull always [usuario]/monitor-app-02:1.0.0
+docker run --rm -it --pull always yuste135/monitor-app-02:1.0.0
 ```
 
-Página de la imagen: https://hub.docker.com/r/[usuario]/monitor-app-02
+Página de la imagen: https://hub.docker.com/r/yuste135/monitor-app-02
 
 ## Ejecución en local
 

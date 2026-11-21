@@ -1,25 +1,25 @@
-"""[Docstring del módulo: una sola línea que diga qué hace el programa.]"""
+"""Monitor de estabilidad semanal de aplicaciones móviles."""
 
+import logging
+import sys
 from typing import Final
 
-# Añadid aquí las importaciones que necesitéis.
-
 # ---------------------------------------------------------------------------
-# Datos de la aplicación. Sustituid los del ejemplo APP-00 por los vuestros.
+# Datos de la aplicación.
 # ---------------------------------------------------------------------------
-CODIGO: Final[str] = "APP-00"
-NOMBRE: Final[str] = "Agenda Escolar"
+CODIGO: Final[str] = "APP-02"
+NOMBRE: Final[str] = "Lista de la Compra"
 # Una posición por semana, de la 1 a la 12. 0 descargas: app retirada.
-DESCARGAS: Final = [1_200, 1_350, 1_280, 1_500, 0, 1_720,
-                    2_050, 1_810, 1_980, 2_310, 2_200, 2_150]
-CAIDAS: Final = [14, 12, 15, 9, 0, 22,
-                 31, 8, 6, 9, 5, 4]
+DESCARGAS: Final = [2_750, 2_850, 3_160, 3_450, 3_660, 4_060,
+                    4_190, 4_270, 0, 4_260, 4_520, 4_450]
+CAIDAS: Final = [44, 14, 45, 32, 17, 26,
+                 14, 13, 0, 37, 104, 11]
 
 # ---------------------------------------------------------------------------
 # Datos del programa. Solo hay que cambiar AUTORES.
 # ---------------------------------------------------------------------------
 VERSION_PROGRAMA: Final[str] = "1.0.0"
-AUTORES: Final[str] = "[Iker Alcolea Mateos] · [David Raúl Rus Almajan]"
+AUTORES: Final[str] = "Iker Alcolea Mateos · David Raúl Rus Almaján"
 PENDIENTE: Final[str] = "  (opción pendiente de implementar)"
 
 # ---------------------------------------------------------------------------
@@ -35,11 +35,23 @@ OPCION_SALIR: Final[int] = 9
 # ---------------------------------------------------------------------------
 # Constantes de la pareja. Todo valor fijo del programa va aquí, con nombre.
 # ---------------------------------------------------------------------------
+PRIMERA_OPCION: Final[int] = 1
+PRIMERA_SEMANA: Final[int] = 1
+UMBRAL_MIN: Final[float] = 0.0
+UMBRAL_MAX: Final[float] = 1_000.0
+OBJETIVO_MAX: Final[int] = 1_000_000
+CRECIMIENTO_MIN: Final[float] = 0.5
+CRECIMIENTO_MAX: Final[float] = 50.0
+CIEN_POR_CIEN: Final[float] = 100.0
+MAX_SEMANAS_PREVISION: Final[int] = 104
+RESPUESTAS_SALIR: Final[tuple[str, str]] = ("s", "S")
 
 
 # ---------------------------------------------------------------------------
 # Excepciones propias de la pareja. Aquí va SemanaNoValida (opción 7).
 # ---------------------------------------------------------------------------
+class SemanaNoValida(Exception):
+    """Excepción lanzada cuando el número de semana no es válido."""
 
 
 # ---------------------------------------------------------------------------
@@ -61,18 +73,16 @@ def estado(descargas: int, caidas: int) -> str:
     "Mantenimiento", este último si la semana no tiene descargas.
     """
     if descargas == 0:
-        return "MAntenimiento"
+        return "Mantenimiento"
 
-    tasa = (caidas / descargas) * 1000
-
-    if tasa < 50:
-        return "EStable"
-    if tasa < 100:
+    tasa = tasa_caidas(descargas, caidas)
+    if tasa < UMBRAL_ESTABLE:
+        return "Estable"
+    if tasa < UMBRAL_ACEPTABLE:
         return "Aceptable"
-    if tasa < 150:
+    if tasa < UMBRAL_REVISAR:
         return "Revisar"
-    else:
-        return "Critica"
+    return "Crítica"
 
 
 def pedir_entero(mensaje: str, minimo: int, maximo: int) -> int:
@@ -86,10 +96,9 @@ def pedir_entero(mensaje: str, minimo: int, maximo: int) -> int:
             valor = int(input(mensaje))
             if minimo <= valor <= maximo:
                 return valor
-            print(f"Error: El valor debe estar entre el minimo y el máximo: {minimo}-{maximo}")
+            print(f"  El valor debe estar entre {minimo} y {maximo}.")
         except ValueError:
-            print("Error, número inválido")
-    return minimo                     # provisional
+            print("  Introduce un número entero válido.")
 
 
 def pedir_real(mensaje: str, minimo: float, maximo: float) -> float:
@@ -103,9 +112,9 @@ def pedir_real(mensaje: str, minimo: float, maximo: float) -> float:
             valor = float(input(mensaje))
             if minimo <= valor <= maximo:
                 return valor
-            print(f"Error: debe estar entre el mínimo y el máximo: {minimo}-{maximo}")
+            print(f"  El valor debe estar entre {minimo} y {maximo}.")
         except ValueError:
-            print("Error, número inválido")
+            print("  Introduce un número válido.")
 
 
 def semana_valida(texto: str) -> int:
@@ -115,11 +124,16 @@ def semana_valida(texto: str) -> int:
     """
     try:
         semana = int(texto)
-        if 1 <= semana <= len(DESCARGAS):
-            return semana
-        raise ValueError("SEmana fuera de rango")
     except ValueError:
-        raise ValueError("Semana no válida")
+        raise SemanaNoValida(f"«{texto}» no es un número de semana") from None
+
+    total_semanas = len(DESCARGAS)
+    if not (PRIMERA_SEMANA <= semana <= total_semanas):
+        raise SemanaNoValida(
+            f"la semana {semana} no existe: "
+            f"hay de {PRIMERA_SEMANA} a {total_semanas}"
+        )
+    return semana
 
 
 def comprobar_datos() -> int:
@@ -143,7 +157,7 @@ def opcion_1_listado() -> None:
     """Muestra las descargas, las caídas y la tasa de cada semana."""
     print(f"{'Semana':>6}{'Descargas':>11}{'Caídas':>8}{'Tasa ‰':>9}")
     for semana, (descargas, caidas) in enumerate(
-            zip(DESCARGAS, CAIDAS), start=1):
+            zip(DESCARGAS, CAIDAS), start=PRIMERA_SEMANA):
         try:
             tasa = f"{tasa_caidas(descargas, caidas):.1f}"
         except ZeroDivisionError:
@@ -161,7 +175,7 @@ def opcion_2_resumen() -> None:
     menos = None
     semana_menos = 0
     for semana, (descargas, caidas) in enumerate(
-            zip(DESCARGAS, CAIDAS), start=1):
+            zip(DESCARGAS, CAIDAS), start=PRIMERA_SEMANA):
         if descargas == 0:
             continue
         activas += 1
@@ -185,21 +199,16 @@ def opcion_2_resumen() -> None:
 
 
 def opcion_3_estabilidad() -> None:
-    """[Docstring: Obtiene el estado de estabilidad cada semana y su recuento.]"""
+    """Muestra el estado de estabilidad de cada semana y el recuento."""
     estables = 0
     aceptables = 0
     revisar = 0
     criticas = 0
     mantenimiento = 0
     for semana, (descargas, caidas) in enumerate(
-            zip(DESCARGAS, CAIDAS), start=1):
-        if descargas == 0:
-            mantenimiento += 1
-            print(f"Semana {semana}: Mantenimiento")
-            continue
+            zip(DESCARGAS, CAIDAS), start=PRIMERA_SEMANA):
         estado_semana = estado(descargas, caidas)
-        print(f"Semana {semana}: {estado_semana}")
-
+        print(f"Semana {semana:>2}: {estado_semana}")
         match estado_semana:
             case "Estable":
                 estables += 1
@@ -207,63 +216,64 @@ def opcion_3_estabilidad() -> None:
                 aceptables += 1
             case "Revisar":
                 revisar += 1
-            case "Crítica": 
+            case "Crítica":
                 criticas += 1
-    print(f"Semanas estables:{estables}")
-    print(f"Semanas aceptables:{aceptables}")
-    print(f"Semanas a revisar: {revisar}")
-    print(f"Semanas críticas: {criticas}")       
-    print(f"Mantenimiento: {mantenimiento}")
+            case "Mantenimiento":
+                mantenimiento += 1
+    print("-" * ANCHO)
+    print(
+        f"Estables: {estables} · Aceptables: {aceptables} · "
+        f"Revisar: {revisar}"
+    )
+    print(f"Críticas: {criticas} · Mantenimiento: {mantenimiento}")
 
 
 def opcion_4_umbral() -> None:
-    """[Docstring: Muestra la primera semana que alcanzaz o supera el umbral por mil.]"""
-    umbral = pedir_real("Umbral de caídas por mil: ", 0, 1000)
-
-    for semana,(descargas, caidas) in enumerate(
-        zip(DESCARGAS, CAIDAS), start=1):
+    """Muestra la primera semana que alcanza o supera un umbral por mil."""
+    umbral = pedir_real("Umbral en caídas por mil: ", UMBRAL_MIN, UMBRAL_MAX)
+    for semana, (descargas, caidas) in enumerate(
+            zip(DESCARGAS, CAIDAS), start=PRIMERA_SEMANA):
         if descargas == 0:
             continue
-
         tasa = tasa_caidas(descargas, caidas)
         if tasa >= umbral:
-            print(f"Primera Semana {semana}: {tasa:.1f} ‰")
+            print(f"Primera semana: {semana} ({tasa:.1f} ‰)")
             break
-        else:
-            print(f"Ninguna semana alcanza el umbral de {umbral:.1f} ‰")
+    else:
+        print(f"Ninguna semana alcanza {umbral:.1f} ‰")
 
 
 def opcion_5_racha() -> None:
-    """[Muestra la racha más larga de semanas seguidas con el estado Estable o aceptable.]"""
+    """Muestra la racha más larga de semanas seguidas sin problemas."""
     mejor_racha = 0
     inicio_mejor = 0
     racha_actual = 0
     inicio_actual = 0
 
-    for semana,(descargas, caidas) in enumerate(
-        zip(DESCARGAS, CAIDAS), start=1
-    ):
+    for semana, (descargas, caidas) in enumerate(
+            zip(DESCARGAS, CAIDAS), start=PRIMERA_SEMANA):
         if descargas == 0:
             continue
 
-        estado_caidas = estado(descargas, caidas)
-
-    if estado_caidas in ("Estable", "Aceptable"):
-        if racha_actual == 0:
-            inicio_actual = semana
-        racha_actual +=1
-
-        if racha_actual > mejor_racha:
-            mejor_racha = racha_actual
-            inicio_mejor = inicio_actual
+        estado_semana = estado(descargas, caidas)
+        if estado_semana in ("Estable", "Aceptable"):
+            if racha_actual == 0:
+                inicio_actual = semana
+            racha_actual += 1
+            if racha_actual > mejor_racha:
+                mejor_racha = racha_actual
+                inicio_mejor = inicio_actual
         else:
             racha_actual = 0
             inicio_actual = 0
-    if mejor_racha > 0:
-        print(f"Mejor racha: {mejor_racha}, semana de inicio: {inicio_mejor}")
-    else:
-        print("NO hay racha")
 
+    if mejor_racha > 0:
+        print(
+            f"Mejor racha: {mejor_racha} semanas, "
+            f"desde la semana {inicio_mejor}"
+        )
+    else:
+        print("No hay ninguna racha sin problemas")
 
 
 def opcion_6_prevision() -> None:
